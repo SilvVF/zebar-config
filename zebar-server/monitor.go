@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
@@ -27,9 +27,26 @@ type MonitorEvent struct {
 }
 
 type Monitor struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	events chan MonitorEvent
+	ctx       context.Context
+	cancel    context.CancelFunc
+	events    chan MonitorEvent
+	mu        sync.Mutex
+	listeners map[chan MonitorEvent]struct{}
+}
+
+func (m *Monitor) Register() chan MonitorEvent {
+	ch := make(chan MonitorEvent, 1)
+	m.mu.Lock()
+	m.listeners[ch] = struct{}{}
+	m.mu.Unlock()
+	return ch
+}
+
+func (m *Monitor) Unregister(ch chan MonitorEvent) {
+	m.mu.Lock()
+	delete(m.listeners, ch)
+	m.mu.Unlock()
+	close(ch)
 }
 
 func NewMonitor(ctx context.Context) *Monitor {
@@ -37,9 +54,10 @@ func NewMonitor(ctx context.Context) *Monitor {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Monitor{
-		ctx:    ctx,
-		cancel: cancel,
-		events: make(chan MonitorEvent),
+		ctx:       ctx,
+		cancel:    cancel,
+		events:    make(chan MonitorEvent),
+		listeners: make(map[chan MonitorEvent]struct{}),
 	}
 }
 
@@ -48,26 +66,39 @@ func (m *Monitor) Stop() {
 }
 
 func (m *Monitor) Run() {
-	fmt.Println("starting monitor")
+	log.Println("starting monitor")
 	ctx := m.ctx
 
 	startQuery := `
 	SELECT * FROM __InstanceCreationEvent WITHIN 2 
 	WHERE TargetInstance ISA 'Win32_Process' AND 
-	(TargetInstance.Name = 'notepad.exe' OR TargetInstance.Name = 'GenshinImpact.exe' OR TargetInstance.Name = 'StarRail.exe')`
+	(TargetInstance.Name = 'Z' OR TargetInstance.Name = 'GenshinImpact.exe' OR TargetInstance.Name = 'StarRail.exe')`
 
 	stopQuery := strings.Replace(startQuery, "__InstanceCreationEvent", "__InstanceDeletionEvent", 1)
 
 	go watchEvent(ctx, startQuery, "started", m.events)
 	go watchEvent(ctx, stopQuery, "stopped", m.events)
 
-	<-ctx.Done()
-	fmt.Println("Shutting down monitor")
+	for {
+		select {
+		case event := <-m.events:
+			log.Printf("Received MonitorEvent %v \n", event)
+			m.mu.Lock()
+			for l := range m.listeners {
+				l <- event
+			}
+			m.mu.Unlock()
+		case <-ctx.Done():
+			log.Println("Shutting down monitor")
+			return
+		}
+	}
 }
 
 func watchEvent(ctx context.Context, query string, eventType string, events chan<- MonitorEvent) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+
 	ole.CoInitialize(0)
 	defer ole.CoUninitialize()
 

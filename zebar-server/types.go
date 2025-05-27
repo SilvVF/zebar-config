@@ -1,11 +1,46 @@
 package main
 
+import "time"
+
+type DailyNoteCommon struct {
+	Game             GameId
+	Current          int
+	Max              int
+	FullyRecoveredTs int
+	RecoverInterval  time.Duration
+}
+
 type DailyNoteResponseStarRail struct {
 	Retcode int    `json:"retcode"`
 	Message string `json:"message"`
 	Data    struct {
-		CurrentStamina int `json:"current_stamina"`
-		MaxStamina     int `json:"max_stamina"`
+		CurrentStamina       int `json:"current_stamina"`
+		MaxStamina           int `json:"max_stamina"`
+		StaminaRecoverTime   int `json:"stamina_recover_time"`
+		StaminaFullTs        int `json:"stamina_full_ts"`
+		AcceptedEpeditionNum int `json:"accepted_epedition_num"`
+		TotalExpeditionNum   int `json:"total_expedition_num"`
+		Expeditions          []struct {
+			Avatars       []string `json:"avatars"`
+			Status        string   `json:"status"`
+			RemainingTime int      `json:"remaining_time"`
+			Name          string   `json:"name"`
+			ItemURL       string   `json:"item_url"`
+			FinishTs      int      `json:"finish_ts"`
+		} `json:"expeditions"`
+		CurrentTrainScore        int  `json:"current_train_score"`
+		MaxTrainScore            int  `json:"max_train_score"`
+		CurrentRogueScore        int  `json:"current_rogue_score"`
+		MaxRogueScore            int  `json:"max_rogue_score"`
+		WeeklyCocoonCnt          int  `json:"weekly_cocoon_cnt"`
+		WeeklyCocoonLimit        int  `json:"weekly_cocoon_limit"`
+		CurrentReserveStamina    int  `json:"current_reserve_stamina"`
+		IsReserveStaminaFull     bool `json:"is_reserve_stamina_full"`
+		RogueTournWeeklyUnlocked bool `json:"rogue_tourn_weekly_unlocked"`
+		RogueTournWeeklyMax      int  `json:"rogue_tourn_weekly_max"`
+		RogueTournWeeklyCur      int  `json:"rogue_tourn_weekly_cur"`
+		CurrentTs                int  `json:"current_ts"`
+		RogueTournExpIsFull      bool `json:"rogue_tourn_exp_is_full"`
 	} `json:"data"`
 }
 

@@ -6,15 +6,15 @@ import (
 
 func TestMain(t *testing.T) {
 
-	_, _, err := DailyNote(ZZZConfig)
+	_, err := DailyNote(ZZZConfig)
 	if err != nil {
 		t.Error(err)
 	}
-	_, _, err = DailyNote(StarRailConfig)
+	_, err = DailyNote(StarRailConfig)
 	if err != nil {
 		t.Error(err)
 	}
-	_, _, err = DailyNote(GenshinConfig)
+	_, err = DailyNote(GenshinConfig)
 	if err != nil {
 		t.Error(err)
 	}
