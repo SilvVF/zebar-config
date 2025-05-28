@@ -20,13 +20,12 @@ func main() {
 	ctx := context.Background()
 
 	monitor := NewMonitor(ctx)
-	ru := NewResinUpdater()
 
 	go monitor.Run()
 	defer monitor.Stop()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(w, r, monitor, ru)
+		serveWs(w, r, monitor)
 	})
 
 	serverError := make(chan error, 1)
@@ -60,7 +59,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor, u *ResinUpdater) {
+func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
@@ -68,9 +67,11 @@ func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor, u *ResinUpdater
 	}
 	defer conn.Close()
 
-	go u.RunDailNoteUpdates(conn, GenshinConfig)
-	go u.RunDailNoteUpdates(conn, StarRailConfig)
-	go u.RunDailNoteUpdates(conn, ZZZConfig)
+	u := NewResinUpdater()
+
+	go u.RunDailyNoteUpdates(conn, GenshinConfig)
+	go u.RunDailyNoteUpdates(conn, StarRailConfig)
+	go u.RunDailyNoteUpdates(conn, ZZZConfig)
 
 	listen := m.Register()
 	defer m.Unregister(listen)
@@ -82,11 +83,11 @@ func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor, u *ResinUpdater
 			log.Println("sending after stop event")
 			switch event.Name {
 			case GenshinProcess:
-				go u.RunDailNoteUpdates(conn, GenshinConfig)
+				go u.RunDailyNoteUpdates(conn, GenshinConfig)
 			case StarRailProcess:
-				go u.RunDailNoteUpdates(conn, StarRailConfig)
+				go u.RunDailyNoteUpdates(conn, StarRailConfig)
 			case ZZZProcess:
-				go u.RunDailNoteUpdates(conn, ZZZConfig)
+				go u.RunDailyNoteUpdates(conn, ZZZConfig)
 			default:
 				continue
 			}

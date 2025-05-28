@@ -19,7 +19,6 @@ type ResinUpdater struct {
 	mu      sync.Mutex
 	notes   map[GameId]DailyNoteCommon
 	cancels map[GameId]context.CancelFunc
-	updates chan DailyNoteCommon
 }
 
 func NewResinUpdater() *ResinUpdater {
@@ -29,7 +28,7 @@ func NewResinUpdater() *ResinUpdater {
 	}
 }
 
-func (u *ResinUpdater) RunDailNoteUpdates(conn *websocket.Conn, config GameConfig) error {
+func (u *ResinUpdater) RunDailyNoteUpdates(conn *websocket.Conn, config GameConfig) error {
 	note, err := DailyNote(config)
 	if err != nil {
 		return err
@@ -76,6 +75,7 @@ func (ru *ResinUpdater) Run(conn *websocket.Conn, note DailyNoteCommon) {
 	time.Sleep(time.Duration(rem) * time.Second)
 
 	ticker := time.NewTicker(note.RecoverInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -89,7 +89,7 @@ func (ru *ResinUpdater) Run(conn *websocket.Conn, note DailyNoteCommon) {
 			}
 
 			n.Current += 1
-			if n.Current == n.Max {
+			if n.Current >= n.Max {
 				ru.mu.Unlock()
 				return
 			}

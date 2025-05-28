@@ -72,7 +72,7 @@ func (m *Monitor) Run() {
 	startQuery := `
 	SELECT * FROM __InstanceCreationEvent WITHIN 2 
 	WHERE TargetInstance ISA 'Win32_Process' AND 
-	(TargetInstance.Name = 'Z' OR TargetInstance.Name = 'GenshinImpact.exe' OR TargetInstance.Name = 'StarRail.exe')`
+	(TargetInstance.Name = 'ZenlessZoneZero.exe' OR TargetInstance.Name = 'GenshinImpact.exe' OR TargetInstance.Name = 'StarRail.exe')`
 
 	stopQuery := strings.Replace(startQuery, "__InstanceCreationEvent", "__InstanceDeletionEvent", 1)
 

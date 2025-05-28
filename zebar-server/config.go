@@ -73,7 +73,7 @@ var GenshinConfig = GameConfig{
 }
 
 func init() {
-	file, err := os.Open("conf.env")
+	file, err := os.Open("C:\\Users\\david\\dev\\go\\zebar-config\\zebar-server\\conf.env")
 	if err != nil {
 		log.Fatal(err)
 	}
