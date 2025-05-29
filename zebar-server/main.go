@@ -76,20 +76,41 @@ func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor) {
 	listen := m.Register()
 	defer m.Unregister(listen)
 
-	for {
-		event := <-listen
+	done := make(chan struct{}, 1)
 
-		if event.Type == StopEvent {
-			log.Println("sending after stop event")
-			switch event.Name {
-			case GenshinProcess:
-				go u.RunDailyNoteUpdates(conn, GenshinConfig)
-			case StarRailProcess:
-				go u.RunDailyNoteUpdates(conn, StarRailConfig)
-			case ZZZProcess:
-				go u.RunDailyNoteUpdates(conn, ZZZConfig)
-			default:
-				continue
+	go func() {
+
+		defer close(done)
+
+		for {
+			if _, _, err := conn.NextReader(); err != nil {
+				conn.Close()
+				break
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-done:
+			return
+		case event, ok := <-listen:
+			if !ok {
+				return
+			}
+
+			if event.Type == StopEvent {
+				log.Println("sending after stop event")
+				switch event.Name {
+				case GenshinProcess:
+					go u.RunDailyNoteUpdates(conn, GenshinConfig)
+				case StarRailProcess:
+					go u.RunDailyNoteUpdates(conn, StarRailConfig)
+				case ZZZProcess:
+					go u.RunDailyNoteUpdates(conn, ZZZConfig)
+				default:
+					continue
+				}
 			}
 		}
 	}

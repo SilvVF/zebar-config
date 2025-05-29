@@ -1,2 +1,3 @@
 *.exe
 zebar-server/cookies.go
+*.env
