@@ -16,8 +16,21 @@ import (
 )
 
 type Server struct {
+	ytmusic *websocket.Conn
+
 	conns map[*websocket.Conn]struct{}
+	last  []byte
 	mu    sync.Mutex
+}
+
+func (s *Server) TogglePlayback() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	log.Println("checking yt conn")
+	if s.ytmusic != nil {
+		log.Println("sending toggle playback to yt-music")
+		s.ytmusic.WriteMessage(websocket.TextMessage, make([]byte, 0))
+	}
 }
 
 func (s *Server) Remove(conn *websocket.Conn) {
@@ -31,12 +44,17 @@ func (s *Server) Add(conn *websocket.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if len(s.last) != 0 {
+		conn.WriteMessage(websocket.TextMessage, s.last)
+	}
 	s.conns[conn] = struct{}{}
 }
 
 func (s *Server) Broadcast(data []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	s.last = data
 
 	for conn := range s.conns {
 		conn.WriteMessage(websocket.TextMessage, data)
@@ -45,6 +63,7 @@ func (s *Server) Broadcast(data []byte) {
 
 func NewServer() *Server {
 	return &Server{
+		last:  make([]byte, 0),
 		conns: map[*websocket.Conn]struct{}{},
 	}
 }
@@ -68,6 +87,8 @@ func main() {
 			return
 		}
 		defer conn.Close()
+
+		serv.ytmusic = conn
 
 		for {
 			mtype, b, err := conn.ReadMessage()
@@ -105,7 +126,7 @@ func main() {
 		log.Printf("Received shutdown signal: %v", sig)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	log.Println("Server is shutting down...")
@@ -144,9 +165,18 @@ func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor, s *Server) {
 		defer close(done)
 
 		for {
-			if _, _, err := conn.NextReader(); err != nil {
+			mtype, b, err := conn.ReadMessage()
+			if err != nil {
 				conn.Close()
 				break
+			}
+
+			switch mtype {
+			case websocket.TextMessage:
+				log.Println("recieved ", string(b))
+				if string(b) == "toggle-playback" {
+					s.TogglePlayback()
+				}
 			}
 		}
 	}()

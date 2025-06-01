@@ -22,6 +22,7 @@
       useState,
       useEffect,
       useMemo,
+      useCallback,
     } from 'https://esm.sh/react@18?dev';
     import { createRoot } from 'https://esm.sh/react-dom@18/client?dev';
     import * as zebar from 'https://esm.sh/zebar@2';
@@ -48,6 +49,11 @@
 
       const [activityInfo, setActivityInfo] = useState(undefined)
       const [retry, setRetry] = useState(0)
+      const [conn, setConn] = useState(undefined)
+
+      const togglePlayback = useCallback(() => {
+        conn?.send("toggle-playback")
+      }, [conn])
 
       useEffect(() => {
         providers.onOutput(() => setOutput(providers.outputMap));
@@ -55,6 +61,7 @@
 
       useEffect(() => {
         const socket = new WebSocket("ws://localhost:45456/ws")
+        setConn(socket)
 
         socket.onmessage = (event) => {
 
@@ -85,6 +92,7 @@
 
         return () => {
           socket.close()
+          setConn(undefined)
           setGenshin([0, 0])
           setZZZ([0, 0])
           setStarRail([0, 0])
@@ -93,15 +101,26 @@
 
       const playing = useMemo(() => {
         if (activityInfo) {
-          const prefix = `Playing: ${activityInfo.details} ${activityInfo.state} `
-
-          var suffix = ""
+          let status = ""
+          const title = `${activityInfo.details} - ${activityInfo.state}`
           if (activityInfo.endTimestamp && activityInfo.startTimestamp) {
-            suffix = `${activityInfo.startTimestamp}/${activityInfo.endTimestamp}`
+
+            const songTime = activityInfo.endTimestamp - activityInfo.startTimestamp
+            const timeLeft = Math.floor(activityInfo.endTimestamp - Date.now() / 1000)
+
+            const elapsedTime = songTime - timeLeft
+
+            const currM = Math.floor(elapsedTime / 60)
+            const currS = Math.floor(elapsedTime % 60)
+
+            const endM = Math.floor(songTime / 60)
+            const endS = Math.floor(songTime % 60)
+
+            status = `Playing: ${title} ${currM}:${currS}/${endM}:${endS}`
           } else {
-            suffix = "paused"
+            status = `Paused: ${title} ${activityInfo.details}`
           }
-          return prefix + suffix
+          return status
         } else {
           return "Not playling"
         }
@@ -248,10 +267,13 @@
               </>
             )}
 
-            {playing && (
-              <div className="">
-                <i className="nf nf-fae-chip"></i>
-                {playing}
+            {activityInfo && (
+              <div className="flex flex-row w-fit h-fit items-center justify-center me-4">
+                <button onClick={togglePlayback}>
+                  {`Button`}
+                </button>
+                <img className="h-8 object-scale-down me-2" src={activityInfo.largeImageKey} alt={activityInfo.largeImageText} />
+                <div>{playing}</div>
               </div>
             )}
 
@@ -309,7 +331,6 @@
                 {output.audio.defaultPlaybackDevice.volume}%
               </div>
             )}
-
           </div>
         </div>
       );
