@@ -8,11 +8,46 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+type Server struct {
+	conns map[*websocket.Conn]struct{}
+	mu    sync.Mutex
+}
+
+func (s *Server) Remove(conn *websocket.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.conns, conn)
+}
+
+func (s *Server) Add(conn *websocket.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.conns[conn] = struct{}{}
+}
+
+func (s *Server) Broadcast(data []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for conn := range s.conns {
+		conn.WriteMessage(websocket.TextMessage, data)
+	}
+}
+
+func NewServer() *Server {
+	return &Server{
+		conns: map[*websocket.Conn]struct{}{},
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -24,8 +59,31 @@ func main() {
 	go monitor.Run()
 	defer monitor.Stop()
 
+	serv := NewServer()
+
+	http.HandleFunc("/ytmusic", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		defer conn.Close()
+
+		for {
+			mtype, b, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			switch mtype {
+			case websocket.TextMessage:
+				log.Println("recieved ytmusic msg: ", string(b))
+				serv.Broadcast(b)
+			}
+		}
+	})
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(w, r, monitor)
+		serveWs(w, r, monitor, serv)
 	})
 
 	serverError := make(chan error, 1)
@@ -59,13 +117,16 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor) {
+func serveWs(w http.ResponseWriter, r *http.Request, m *Monitor, s *Server) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	s.Add(conn)
+
 	defer conn.Close()
+	defer s.Remove(conn)
 
 	u := NewResinUpdater()
 

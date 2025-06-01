@@ -1,3 +1,4 @@
 *.exe
 zebar-server/cookies.go
 *.env
+/build

@@ -46,6 +46,7 @@
       const [starrail, setStarRail] = useState([0, 0])
       const [zzz, setZZZ] = useState([0, 0])
 
+      const [activityInfo, setActivityInfo] = useState(undefined)
       const [retry, setRetry] = useState(0)
 
       useEffect(() => {
@@ -57,15 +58,24 @@
 
         socket.onmessage = (event) => {
 
-          const message = JSON.parse(event.data)
-          const resin = [message.curr, message.max]
-          const game = message.game
-          if (game === "genshin") {
-            setGenshin(resin)
-          } else if (game === "hkrpg") {
-            setStarRail(resin)
-          } else {
-            setZZZ(resin)
+          try {
+            const message = JSON.parse(event.data)
+
+            if (message.details) {
+              setActivityInfo(message)
+            } else {
+              const resin = [message.curr, message.max]
+              const game = message.game
+              if (game === "genshin") {
+                setGenshin(resin)
+              } else if (game === "hkrpg") {
+                setStarRail(resin)
+              } else {
+                setZZZ(resin)
+              }
+            }
+          } catch (err) {
+            console.error(err)
           }
         }
 
@@ -80,6 +90,22 @@
           setStarRail([0, 0])
         }
       }, [retry])
+
+      const playing = useMemo(() => {
+        if (activityInfo) {
+          const prefix = `Playing: ${activityInfo.details} ${activityInfo.state} `
+
+          var suffix = ""
+          if (activityInfo.endTimestamp && activityInfo.startTimestamp) {
+            suffix = `${activityInfo.startTimestamp}/${activityInfo.endTimestamp}`
+          } else {
+            suffix = "paused"
+          }
+          return prefix + suffix
+        } else {
+          return "Not playling"
+        }
+      }, [activityInfo])
 
       const resinValues = useMemo(() => {
         return `Genshin: ${genshin[0]}/${genshin[1]} StarRail: ${starrail[0]}/${starrail[1]} ZZZ: ${zzz[0]}/${zzz[1]}`
@@ -220,6 +246,13 @@
                   }
                 ></button>
               </>
+            )}
+
+            {playing && (
+              <div className="">
+                <i className="nf nf-fae-chip"></i>
+                {playing}
+              </div>
             )}
 
             {output.memory && (
