@@ -51,7 +51,12 @@
       const [retry, setRetry] = useState(0)
       const [conn, setConn] = useState(undefined)
 
+      const [playing, setPlaying] = useState(false)
+
       const togglePlayback = useCallback(() => {
+        if (conn) {
+          setPlaying(playing => !playing)
+        }
         conn?.send("toggle-playback")
       }, [conn])
 
@@ -99,7 +104,7 @@
         }
       }, [retry])
 
-      const playing = useMemo(() => {
+      const playerStatus = useMemo(() => {
         if (activityInfo) {
           let status = ""
           const title = `${activityInfo.details} - ${activityInfo.state}`
@@ -130,6 +135,10 @@
         return `Genshin: ${genshin[0]}/${genshin[1]} StarRail: ${starrail[0]}/${starrail[1]} ZZZ: ${zzz[0]}/${zzz[1]}`
       }, [genshin, starrail, zzz])
 
+      useEffect(() => {
+        setPlaying(playerStatus.startsWith("Playing"))
+      }, [playerStatus])
+
       // Get icon to show for current network status.
       function getNetworkIcon(networkOutput) {
         switch (networkOutput.defaultInterface?.type) {
@@ -158,6 +167,13 @@
               <i className="nf nf-md-wifi_strength_off_outline"></i>
             );
         }
+      }
+
+      function getPlaybackIcon(playing) {
+        if (playing) {
+          return <i className="nf nf-fa-pause"></i>
+        }
+        return <i className="nf nf-fa-play"></i>
       }
 
       // Get icon to show for how much of the battery is charged.
@@ -269,11 +285,11 @@
 
             {activityInfo && (
               <div className="flex flex-row w-fit h-fit items-center justify-center me-4">
-                <button onClick={togglePlayback}>
-                  {`Button`}
+                <button className="bg-[rgba(115, 130, 175, 95)]" onClick={togglePlayback}>
+                  {getPlaybackIcon(playing)}
                 </button>
                 <img className="h-8 object-scale-down me-2" src={activityInfo.largeImageKey} alt={activityInfo.largeImageText} />
-                <div>{playing}</div>
+                <div>{playerStatus}</div>
               </div>
             )}
 
