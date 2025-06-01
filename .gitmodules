@@ -1,0 +1,3 @@
+[submodule "ytmusic"]
+	path = ytmusic
+	url = https://github.com/th-ch/youtube-music.git
