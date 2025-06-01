@@ -43,6 +43,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 cd ..
 echo YoutubeMusic build complete.
+
 echo copying to bin
 xcopy "youtube-music\pack\YouTube Music 3.9.0.exe" %USERPROFILE%\dev\bin\ /E /I /Y
 echo copied to bin
