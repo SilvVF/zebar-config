@@ -1,11 +1,4 @@
 @echo off
-set SRC=%CD%\frontend
-set DST=%USERPROFILE%\.glzr\zebar\frontend
-
-echo Copying frontend from %SRC% to %DST%...
-xcopy "%SRC%" "%DST%" /E /I /Y
-echo Done copying.
-
 echo Building zebar-server...
 
 cd zebar-server
