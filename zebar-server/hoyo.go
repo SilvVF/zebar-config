@@ -71,6 +71,10 @@ func (ru *ResinUpdater) Run(conn *websocket.Conn, note DailyNoteCommon) {
 
 	ru.mu.Unlock()
 
+	if note.Current >= note.Max {
+		return
+	}
+
 	rem := note.FullyRecoveredTs % int(note.RecoverInterval.Seconds())
 	time.Sleep(time.Duration(rem) * time.Second)
 
@@ -89,16 +93,17 @@ func (ru *ResinUpdater) Run(conn *websocket.Conn, note DailyNoteCommon) {
 			}
 
 			n.Current += 1
-			if n.Current >= n.Max {
-				ru.mu.Unlock()
-				return
-			}
-
 			ru.notes[note.Game] = n
 			if err := writeNoteToConn(conn, n); err != nil {
 				ru.mu.Unlock()
 				return
 			}
+
+			if n.Current >= n.Max {
+				ru.mu.Unlock()
+				return
+			}
+
 			ru.mu.Unlock()
 
 		case <-ctx.Done():
